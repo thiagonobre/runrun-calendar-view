@@ -9,14 +9,46 @@
 
 		var self = this;
 
-		self.PART_SIZE = ko.pureComputed(function() { return 15 });
+		self.weekStartDay = ko.observable(1); // monday
+		self.weekEndDay = ko.observable(5); // friday
+		self.taskPartSize = ko.observable(15);
+		self.dayStartHour = ko.observable(9);
+		self.dayStartMinute = ko.observable(0);
+		self.tasks = ko.observableArray();
+		self.currentDay = ko.observable(new Date);
 		
+		self.init = function(tasks) {
+			self.tasks(tasks);
+		}
+	}
+
+	CalendarViewModel.getInstance = function() {
+		CalendarViewModel.__instance__ = CalendarViewModel.__instance__ || new CalendarViewModel;
+		return CalendarViewModel.__instance__;
+	}
+
+	var Week = function(date) {
+
+		var self = this, calendar = CalendarViewModel.getInstance();
+
+		var dateMilis = +date;
+		// var week
+
+		this.start = ko.observable(date);
 
 	}
 
-	var Task = function(task, calendar) {
+	var Day = function(date) {
 
-		var self = this;
+		var self = this, calendar = CalendarViewModel.getInstance();
+
+		this.date = ko.observable(date);
+
+	}
+
+	var Task = function(task) {
+
+		var self = this, calendar = CalendarViewModel.getInstance();
 
 		self.raw = ko.observable(task);
 
@@ -26,7 +58,7 @@
 
 		self.parts = ko.pureComputed(function(){
 
-			return self.currentEstimateSeconds() / (calendar.PART_SIZE() * 60);
+			return self.currentEstimateSeconds() / (calendar.taskPartSize() * 60);
 
 		});
 
@@ -35,8 +67,6 @@
 
 
 	function makeEverythingHappen() {
-
-		var calendar = new CalendarViewModel;
 
 		fetch("https://runrun.it/api/tasks?limit=1&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=desired_start_date&sort_dir=desc", {
 			"credentials": "include",
@@ -55,9 +85,13 @@
 			"mode": "cors"
 		}).then((r) => r.json()).then((tasks) => {
 
-			task = new Task(tasks[0], calendar);
+			CalendarViewModel.getInstance().init(tasks.map(t => new Task(t)));
+
+			task = new Task(tasks[0]);
 
 			console.log(task.parts());
+
+			window.CalendarViewModel = CalendarViewModel;
 
 		});
 	}

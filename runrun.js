@@ -2,10 +2,10 @@
 
 	var newScript = document.createElement("script");
 	newScript.src = "https://knockoutjs.com/downloads/knockout-3.5.1.js";
-	newScript.onload = makeEverythingHappen;
+	newScript.onload = makeItHappen;
 	document.body.appendChild(newScript);
 
-	var CalendarViewModel = function() {
+	function CalendarViewModel() {
 
 		var self = this;
 
@@ -16,7 +16,10 @@
 		self.dayStartMinute = ko.observable(0);
 		self.tasks = ko.observableArray();
 		self.currentDay = ko.observable(new Date);
-		
+		self.week = ko.computed(function() {
+			return new Week(self.currentDay());
+		})
+
 		self.init = function(tasks) {
 			self.tasks(tasks);
 		}
@@ -27,7 +30,7 @@
 		return CalendarViewModel.__instance__;
 	}
 
-	var Week = function(date) {
+	function Week(date) {
 
 		var self = this, calendar = CalendarViewModel.getInstance();
 
@@ -38,7 +41,7 @@
 
 	}
 
-	var Day = function(date) {
+	function Day(date) {
 
 		var self = this, calendar = CalendarViewModel.getInstance();
 
@@ -46,7 +49,7 @@
 
 	}
 
-	var Task = function(task) {
+	function Task(task) {
 
 		var self = this, calendar = CalendarViewModel.getInstance();
 
@@ -66,7 +69,7 @@
 
 
 
-	function makeEverythingHappen() {
+	function makeItHappen() {
 
 		fetch("https://runrun.it/api/tasks?limit=1&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=desired_start_date&sort_dir=desc", {
 			"credentials": "include",

@@ -1,9 +1,13 @@
 (function() {
 
-	var newScript = document.createElement("script");
-	newScript.src = "https://knockoutjs.com/downloads/knockout-3.5.1.js";
-	newScript.onload = makeItHappen;
-	document.body.appendChild(newScript);
+    if(!window.ko) {
+		var newScript = document.createElement("script");
+		newScript.src = "https://knockoutjs.com/downloads/knockout-3.5.1.js";
+		newScript.onload = makeItHappen;
+		document.body.appendChild(newScript);
+    } else {
+    	makeItHappen();
+    }
 
 	function CalendarViewModel() {
 
@@ -44,7 +48,7 @@
 
 		for (var i = 0, j = 7; i < j; i++) {
 
-			days.push(new Day(new Date(+weekStart + i * dayInMilis)));
+			days.push(new Day(new Date(+weekStart + i * dayInMilis), self));
 
 		}
 
@@ -54,11 +58,15 @@
 
 	}
 
-	function Day(date) {
+	function Day(date, week) {
 
-		var self = this;
+		var self = this, calendar = CalendarViewModel.getInstance();
 
-		this.date = ko.observable(date);
+		self.date = ko.observable(date);
+		self.isHoliday = ko.observable(false);
+		self.isBusinessDay = ko.pureComputed(function() {
+			return !self.isHoliday() && self.date().getDay() >= week.businessStartDay() && self.date().getDay() <= week.businessEndDay();
+		})
 
 	}
 
@@ -112,6 +120,8 @@
 
 		});
 	}
+
+	mih = makeItHappen;
 
 
 }());

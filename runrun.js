@@ -1,13 +1,13 @@
 (function() {
 
-    if(!window.ko) {
+	if (!window.ko) {
 		var newScript = document.createElement("script");
 		newScript.src = "https://knockoutjs.com/downloads/knockout-3.5.1.js";
 		newScript.onload = makeItHappen;
 		document.body.appendChild(newScript);
-    } else {
-    	makeItHappen();
-    }
+	} else {
+		makeItHappen();
+	}
 
 	function CalendarViewModel() {
 
@@ -16,21 +16,22 @@
 		self.init = function(tasks) {
 
 			self.taskPartSize = ko.observable(15);
-			self.tasks = ko.observableArray();
 			self.currentDay = ko.observable(new Date);
-            self.dayStartHours = ko.observable(9);
-            self.dayStartMinutes = ko.observable(0);
+			self.dayStartHours = ko.observable(9);
+			self.dayStartMinutes = ko.observable(0);
 			self.businessHours = ko.observable(8);
 			self.lunchDurationInMinutes = ko.observable(60);
-            self.lunchStartHours = ko.observable(12);
-            self.lunchStartMinutes = ko.observable(0);
+			self.lunchStartHours = ko.observable(12);
+			self.lunchStartMinutes = ko.observable(0);
 
-            
+
 			self.week = ko.computed(function() {
 				return new Week(self.currentDay());
 			});
-			
-			self.tasks(tasks);
+
+			self.tasks = ko.observable(tasks.map(t => new Task(t)));
+
+			// self.tasks(tasks);
 		}
 	}
 
@@ -41,7 +42,8 @@
 
 	function Week(date) {
 
-		var self = this, calendar = CalendarViewModel.getInstance();
+		var self = this,
+			calendar = CalendarViewModel.getInstance();
 
 		self.businessStartDay = ko.observable(1); // monday
 		self.businessEndDay = ko.observable(5); // friday
@@ -66,26 +68,27 @@
 
 	function Day(date, week) {
 
-		var self = this, calendar = CalendarViewModel.getInstance();
+		var self = this,
+			calendar = CalendarViewModel.getInstance();
 
 		self.start = ko.observable(date);
-        self.start().setHours(calendar.dayStartHours());
-        self.start().setMinutes(calendar.dayStartMinutes());
-        self.start().setSeconds(0);
+		self.start().setHours(calendar.dayStartHours());
+		self.start().setMinutes(calendar.dayStartMinutes());
+		self.start().setSeconds(0);
 
-        self.lunchStart = ko.observable(new Date(date));
-        self.lunchStart().setHours(calendar.lunchStartHours());
-        self.lunchStart().setMinutes(calendar.lunchStartMinutes());
+		self.lunchStart = ko.observable(new Date(date));
+		self.lunchStart().setHours(calendar.lunchStartHours());
+		self.lunchStart().setMinutes(calendar.lunchStartMinutes());
 
-        self.lunchEnd = ko.pureComputed(function() {
-        	return new Date(+self.lunchStart() + calendar.lunchDurationInMinutes() * 60 * 1000);
-        })
+		self.lunchEnd = ko.pureComputed(function() {
+			return new Date(+self.lunchStart() + calendar.lunchDurationInMinutes() * 60 * 1000);
+		})
 
-        var dayInMilis = ko.pureComputed(function(){
-        	return (calendar.businessHours() + calendar.lunchDurationInMinutes() / 60) * 60 * 60 * 1000;
-        });
+		var dayInMilis = ko.pureComputed(function() {
+			return (calendar.businessHours() + calendar.lunchDurationInMinutes() / 60) * 60 * 60 * 1000;
+		});
 
-        self.end = ko.observable(new Date(+self.start() + dayInMilis()));
+		self.end = ko.observable(new Date(+self.start() + dayInMilis()));
 
 		var isHoliday = ko.observable(false);
 		self.isBusinessDay = ko.pureComputed(function() {
@@ -101,18 +104,18 @@
 
 		self.raw = ko.observable(task);
 
-        if(task.desired_start_date) {
-		    self.start = ko.observable(new Date(task.desired_start_date));        	
-        } else {
-		    self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
-        }
+		if (task.desired_start_date) {
+			self.start = ko.observable(new Date(task.desired_start_date));
+		} else {
+			self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
+		}
 
 		self.end = ko.observable(new Date(task.desired_date_with_time));
 		self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
 
 		self.parts = ko.pureComputed(function() {
 
-			return (self.end()-self.start()) / (calendar.taskPartSize() * 60 * 1000);
+			return (self.end() - self.start()) / (calendar.taskPartSize() * 60 * 1000);
 
 		});
 
@@ -139,7 +142,7 @@
 			"mode": "cors"
 		}).then((r) => r.json()).then((tasks) => {
 
-			CalendarViewModel.getInstance().init(tasks.map(t => new Task(t)));
+			CalendarViewModel.getInstance().init(tasks);
 
 			task = new Task(tasks[0]);
 

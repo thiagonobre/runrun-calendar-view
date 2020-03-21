@@ -5,10 +5,40 @@
 	newScript.onload = makeEverythingHappen;
 	document.body.appendChild(newScript);
 
+	var CalendarViewModel = function() {
+
+		var self = this;
+
+		self.PART_SIZE = ko.pureComputed(function() { return 15 });
+		
+
+	}
+
+	var Task = function(task, calendar) {
+
+		var self = this;
+
+		self.raw = ko.observable(task);
+
+		self.start = ko.observable(new Date(task.desired_start_date));
+		self.end = ko.observable(new Date(task.desired_date_with_time));
+		self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
+
+		self.parts = ko.pureComputed(function(){
+
+			return self.currentEstimateSeconds() / (calendar.PART_SIZE() * 60);
+
+		});
+
+	}
+
 
 
 	function makeEverythingHappen() {
-		fetch("https://runrun.it/api/tasks?limit=250&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=desired_start_date&sort_dir=desc", {
+
+		var calendar = new CalendarViewModel;
+
+		fetch("https://runrun.it/api/tasks?limit=1&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=desired_start_date&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -25,7 +55,9 @@
 			"mode": "cors"
 		}).then((r) => r.json()).then((tasks) => {
 
-			console.log(tasks[0]);
+			task = new Task(tasks[0], calendar);
+
+			console.log(task.parts());
 
 		});
 	}

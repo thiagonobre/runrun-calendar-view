@@ -9,8 +9,6 @@
 
 		var self = this;
 
-		self.weekStartDay = ko.observable(1); // monday
-		self.weekEndDay = ko.observable(5); // friday
 		self.taskPartSize = ko.observable(15);
 		self.dayStartHour = ko.observable(9);
 		self.dayStartMinute = ko.observable(0);
@@ -18,7 +16,7 @@
 		self.currentDay = ko.observable(new Date);
 		self.week = ko.computed(function() {
 			return new Week(self.currentDay());
-		})
+		});
 
 		self.init = function(tasks) {
 			self.tasks(tasks);
@@ -27,15 +25,20 @@
 
 	CalendarViewModel.getInstance = function() {
 		CalendarViewModel.__instance__ = CalendarViewModel.__instance__ || new CalendarViewModel;
+		console.log(CalendarViewModel.__instance__);
 		return CalendarViewModel.__instance__;
 	}
 
 	function Week(date) {
 
-		var self = this, calendar = CalendarViewModel.getInstance();
+		var self = this;
+		
+		self.businessStartDay = ko.observable(1); // monday
+		self.businessEndDay = ko.observable(5); // friday
+
 
 		var dateMilis = +date;
-		// var week
+		var week
 
 		this.start = ko.observable(date);
 
@@ -43,7 +46,7 @@
 
 	function Day(date) {
 
-		var self = this, calendar = CalendarViewModel.getInstance();
+		var self = this;
 
 		this.date = ko.observable(date);
 

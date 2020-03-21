@@ -9,36 +9,46 @@
 
 		var self = this;
 
-		self.taskPartSize = ko.observable(15);
-		self.dayStartHour = ko.observable(9);
-		self.dayStartMinute = ko.observable(0);
-		self.tasks = ko.observableArray();
-		self.currentDay = ko.observable(new Date);
-		self.week = ko.computed(function() {
-			return new Week(self.currentDay());
-		});
-
 		self.init = function(tasks) {
+
+			self.taskPartSize = ko.observable(15);
+			self.dayStartHour = ko.observable(9);
+			self.dayStartMinute = ko.observable(0);
+			self.tasks = ko.observableArray();
+			self.currentDay = ko.observable(new Date);
+			self.week = ko.computed(function() {
+				return new Week(self.currentDay());
+			});
+
 			self.tasks(tasks);
 		}
 	}
 
 	CalendarViewModel.getInstance = function() {
 		CalendarViewModel.__instance__ = CalendarViewModel.__instance__ || new CalendarViewModel;
-		console.log(CalendarViewModel.__instance__);
 		return CalendarViewModel.__instance__;
 	}
 
 	function Week(date) {
 
-		var self = this;
-		
+		var self = this, calendar = CalendarViewModel.getInstance();
+
 		self.businessStartDay = ko.observable(1); // monday
 		self.businessEndDay = ko.observable(5); // friday
 
-
+		var dayInMilis = 1000 * 60 * 60 * 24;
 		var dateMilis = +date;
-		var week
+		var weekStart = new Date(+date - date.getDay() * dayInMilis);
+
+		var days = [];
+
+		for (var i = 0, j = 7; i < j; i++) {
+
+			days.push(new Day(new Date(+weekStart + i * dayInMilis)));
+
+		}
+
+		self.days = ko.observable(days);
 
 		this.start = ko.observable(date);
 
@@ -54,7 +64,8 @@
 
 	function Task(task) {
 
-		var self = this, calendar = CalendarViewModel.getInstance();
+		var self = this,
+			calendar = CalendarViewModel.getInstance();
 
 		self.raw = ko.observable(task);
 
@@ -62,7 +73,7 @@
 		self.end = ko.observable(new Date(task.desired_date_with_time));
 		self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
 
-		self.parts = ko.pureComputed(function(){
+		self.parts = ko.pureComputed(function() {
 
 			return self.currentEstimateSeconds() / (calendar.taskPartSize() * 60);
 
@@ -97,7 +108,7 @@
 
 			console.log(task.parts());
 
-			window.CalendarViewModel = CalendarViewModel;
+			window.calendar = CalendarViewModel.getInstance();
 
 		});
 	}

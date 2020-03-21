@@ -16,8 +16,6 @@
 		self.init = function(tasks) {
 
 			self.taskPartSize = ko.observable(15);
-			self.dayStartHour = ko.observable(9);
-			self.dayStartMinute = ko.observable(0);
 			self.tasks = ko.observableArray();
 			self.currentDay = ko.observable(new Date);
 			self.week = ko.computed(function() {
@@ -62,11 +60,23 @@
 
 		var self = this, calendar = CalendarViewModel.getInstance();
 
-		self.date = ko.observable(date);
+		self.start = ko.observable(date);
+        self.start().setHours(9);
+        self.start().setMinutes(0);
+
+        self.businessHours = ko.observable(8);
+        self.lunchHours = ko.observable(1);
+
+        self.dayInMilis = ko.pureComputed(function(){
+        	return (self.businessHours() + self.lunchHours()) * 60 * 60 * 1000;
+        });
+
+        self.end = ko.observable(new Date(+self.start() + self.dayInMilis()));
+
 		self.isHoliday = ko.observable(false);
 		self.isBusinessDay = ko.pureComputed(function() {
-			return !self.isHoliday() && self.date().getDay() >= week.businessStartDay() && self.date().getDay() <= week.businessEndDay();
-		})
+			return !self.isHoliday() && self.start().getDay() >= week.businessStartDay() && self.start().getDay() <= week.businessEndDay();
+		});
 
 	}
 
@@ -77,13 +87,18 @@
 
 		self.raw = ko.observable(task);
 
-		self.start = ko.observable(new Date(task.desired_start_date));
+        if(task.desired_start_date) {
+		    self.start = ko.observable(new Date(task.desired_start_date));        	
+        } else {
+		    self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
+        }
+
 		self.end = ko.observable(new Date(task.desired_date_with_time));
 		self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
 
 		self.parts = ko.pureComputed(function() {
 
-			return self.currentEstimateSeconds() / (calendar.taskPartSize() * 60);
+			return (self.end()-self.start()) / (calendar.taskPartSize() * 60 * 1000);
 
 		});
 
@@ -93,7 +108,7 @@
 
 	function makeItHappen() {
 
-		fetch("https://runrun.it/api/tasks?limit=1&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=desired_start_date&sort_dir=desc", {
+		fetch("https://runrun.it/api/tasks?limit=1&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -114,7 +129,7 @@
 
 			task = new Task(tasks[0]);
 
-			console.log(task.parts());
+			console.log('done');
 
 			window.calendar = CalendarViewModel.getInstance();
 

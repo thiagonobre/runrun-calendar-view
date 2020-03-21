@@ -18,10 +18,18 @@
 			self.taskPartSize = ko.observable(15);
 			self.tasks = ko.observableArray();
 			self.currentDay = ko.observable(new Date);
+            self.dayStartHours = ko.observable(9);
+            self.dayStartMinutes = ko.observable(0);
+			self.businessHours = ko.observable(8);
+			self.lunchDurationInMinutes = ko.observable(60);
+            self.lunchStartHours = ko.observable(12);
+            self.lunchStartMinutes = ko.observable(0);
+
+            
 			self.week = ko.computed(function() {
 				return new Week(self.currentDay());
 			});
-
+			
 			self.tasks(tasks);
 		}
 	}
@@ -61,21 +69,27 @@
 		var self = this, calendar = CalendarViewModel.getInstance();
 
 		self.start = ko.observable(date);
-        self.start().setHours(9);
-        self.start().setMinutes(0);
+        self.start().setHours(calendar.dayStartHours());
+        self.start().setMinutes(calendar.dayStartMinutes());
+        self.start().setSeconds(0);
 
-        self.businessHours = ko.observable(8);
-        self.lunchHours = ko.observable(1);
+        self.lunchStart = ko.observable(new Date(date));
+        self.lunchStart().setHours(calendar.lunchStartHours());
+        self.lunchStart().setMinutes(calendar.lunchStartMinutes());
 
-        self.dayInMilis = ko.pureComputed(function(){
-        	return (self.businessHours() + self.lunchHours()) * 60 * 60 * 1000;
+        self.lunchEnd = ko.pureComputed(function() {
+        	return new Date(+self.lunchStart() + calendar.lunchDurationInMinutes() * 60 * 1000);
+        })
+
+        var dayInMilis = ko.pureComputed(function(){
+        	return (calendar.businessHours() + calendar.lunchDurationInMinutes() / 60) * 60 * 60 * 1000;
         });
 
-        self.end = ko.observable(new Date(+self.start() + self.dayInMilis()));
+        self.end = ko.observable(new Date(+self.start() + dayInMilis()));
 
-		self.isHoliday = ko.observable(false);
+		var isHoliday = ko.observable(false);
 		self.isBusinessDay = ko.pureComputed(function() {
-			return !self.isHoliday() && self.start().getDay() >= week.businessStartDay() && self.start().getDay() <= week.businessEndDay();
+			return !isHoliday() && self.start().getDay() >= week.businessStartDay() && self.start().getDay() <= week.businessEndDay();
 		});
 
 	}

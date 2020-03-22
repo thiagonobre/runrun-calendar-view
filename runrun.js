@@ -4,26 +4,22 @@
 
 		var self = this;
 
-		self.init = function() {
+		self.taskPartSize = ko.observable(15);
+		self.currentDay = ko.observable();
+		self.dayStartHours = ko.observable(9);
+		self.dayStartMinutes = ko.observable(0);
+		self.businessHours = ko.observable(8);
+		self.lunchDurationInMinutes = ko.observable(60);
+		self.lunchStartHours = ko.observable(12);
+		self.lunchStartMinutes = ko.observable(0);
+
+		self.init = function(date) {
+
+			self.currentDay(date || new Date);
 
 			self.loadTags().then((tasks) => {
 
 				console.log('done');
-
-				window.calendar = CalendarViewModel.getInstance();
-
-				self.taskPartSize = ko.observable(15);
-				self.currentDay = ko.observable(new Date);
-				self.dayStartHours = ko.observable(9);
-				self.dayStartMinutes = ko.observable(0);
-				self.businessHours = ko.observable(8);
-				self.lunchDurationInMinutes = ko.observable(60);
-				self.lunchStartHours = ko.observable(12);
-				self.lunchStartMinutes = ko.observable(0);
-
-				self.week = ko.computed(function() {
-					return new Week(self.currentDay());
-				});
 
 				self.assignees = ko.observable({});
 
@@ -36,12 +32,26 @@
 					tasks[t.id()] = t;
 				});
 
+				self.week = ko.observable(new Week(self.currentDay()));
+
+				self.currentDay.subscribe(function(day) {
+
+					console.log(day, self.currentDay(), +day < +self.week().days()[0].start(), +self.week().days()[6].end() < +day);
+
+                    if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
+                    	self.week(new Week(self.currentDay()));
+                    }
+
+				});
+
+			    self.week.subscribe(function() { console.log('change week') });
+
 			});
 		}
 	}
 
 	CalendarViewModel.prototype.loadTags = function() {
-		return fetch("https://runrun.it/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
+		return fetch("/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -175,6 +185,8 @@
 	function makeItHappen() {
 
 		CalendarViewModel.getInstance().init();
+
+		window.calendar = CalendarViewModel.getInstance();
 
 	}
 

@@ -247,6 +247,10 @@
 
 			self.parts = ko.observable([]);
 
+			self.dayParts = ko.pureComputed(function(){
+				return self.parts().map(p => new Date(p).toISOString().slice(0, 10));
+			})
+
 			self.totalParts = ko.pureComputed(function() {
 
 				return (self.end() - self.start()) / (calendar.taskPartSize() * 60 * 1000);
@@ -275,20 +279,18 @@
 
 				task.parts(parts.slice(start, end+1));
 
-// 				console.log('task parts', ko.toJS(task));
-				console.log(task.parts().map(d => new Date(d)).join('\n'));
 			} else if (start > -1) {
-// 				console.log('task parts 2', ko.toJS(task));
+				
 				task.parts(parts.slice(start, start + task.totalParts()));
-// 				console.log('task parts', ko.toJS(task));
-				console.log(task.parts().map(d => new Date(d)).join('\n'));
+			
 			} else if (end > -1) {
-// 				console.log('task parts 3', ko.toJS(task));
+			
 				task.parts(parts.slice(Math.max(end - task.totalParts(), 0), end+1));
-// 				console.log('task parts', ko.toJS(task));
-// 				console.log(task.parts().map(d => new Date(d)).join('\n'));
+			
 			} else {
+			
 			    task.parts([]);
+			
 			}
 		})
 

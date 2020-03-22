@@ -23,16 +23,16 @@
 
 		self.init = function(date) {
 
+			var start = new Date;
+
 			self.currentDay(date || new Date);
 
-			self.loadTags().then((tasks) => {
-
-				console.log('done');
+			self.loadTasks().then((tasks) => {
 
 				self.assignees = ko.observable({});
 
 				self.tasks = ko.observable({});
-				self.tasksArray = ko.observable(tasks.map(t => new Task(t)));
+				self.tasksArray = ko.observable(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
 
 				tasks = self.tasks();
 
@@ -53,12 +53,13 @@
 				});
 
 				// 			    self.week.subscribe(function() { console.log('change week') });
+				console.log('done', new Date-start, 'ms');
 
 			});
 		}
 	}
 
-	CalendarViewModel.prototype.loadTags = function() {
+	CalendarViewModel.prototype.loadTasks = function() {
 		return fetch("/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
@@ -90,10 +91,9 @@
 		var dayInMilis = 1000 * 60 * 60 * 24;
 		var dateMilis = +date;
 		var weekStart = new Date(+date - date.getDay() * dayInMilis);
-		self.id = function() {
-			console.log('weekStart', weekStart);
+		self.id = ko.pureComputed(function() {
 			return weekStart.toISOString().substring(0, 10)
-		};
+		});
 
 		if (calendar.weeks()[self.id()]) {
 			return calendar.weeks()[self.id()];
@@ -114,11 +114,11 @@
 				var tomorrow = new Date(+weekStart + (i + 1) * dayInMilis);
 				var tomorrowKey = tomorrow.toISOString().substring(0, 10);
 
-				calendar.days()[todayKey] = calendar.days()[todayKey] || ko.observable(new Day(today, self, calendar.days()[yesterdayKey], calendar.days()[tomorrowKey]));
+				calendar.days()[todayKey] = calendar.days()[todayKey] || ko.observable(new Day(today, calendar.days()[yesterdayKey], calendar.days()[tomorrowKey]));
 				self.days()[i] = calendar.days()[todayKey]();
 
 				if (i + 1 < j) {
-					calendar.days()[tomorrowKey] = calendar.days()[tomorrowKey] || ko.observable(new Day(tomorrow, self, calendar.days()[todayKey]));
+					calendar.days()[tomorrowKey] = calendar.days()[tomorrowKey] || ko.observable(new Day(tomorrow, calendar.days()[todayKey]));
 					self.days()[i + 1] = calendar.days()[tomorrowKey]();
 					// 			    console.log(i, tomorrowKey, calendar.days()[tomorrowKey]());
 				}
@@ -174,7 +174,7 @@
 
 	}
 
-	function Day(date, week, yesterday, tomorrow) {
+	function Day(date, yesterday, tomorrow) {
 
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
@@ -214,31 +214,42 @@
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
 
-		self.id = function() {
+		self.id = ko.pureComputed(function() {
 			return task.id
-		};
+		});
 		self.raw = ko.observable(task);
 
-		if (task.desired_start_date) {
-			self.start = ko.observable(new Date(task.desired_start_date));
-		} else {
-			self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
+		if (task.desired_start_date || task.desired_date_with_time) {
+
+			if (task.desired_start_date) {
+				self.start = ko.observable(new Date(task.desired_start_date));
+				self.end = ko.observable(new Date(+new Date(task.desired_start_date) + task.current_estimate_seconds * 1000));
+
+				var start = new Day(self.start());
+				var end = new Day(self.end());
+
+				
+
+
+			} else if(task.desired_date_with_time) {
+				self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
+				self.end = ko.observable(new Date(task.desired_date_with_time));
+			}
+
+			// console.log(self.start().toISOString().substring(0, 10), calendar.days()[self.start().toISOString().substring(0, 10)]);
+
+			self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
+
+			self.totalParts = ko.pureComputed(function() {
+
+				return (self.end() - self.start()) / (calendar.taskPartSize() * 60 * 1000);
+
+			});
+
+			self.assignees = ko.observable(task.assignments.map(a => new Assignee(a)));
+
+			self.assignees().forEach(a => calendar.tasks()[task.id] || a.tasks().push(self));
 		}
-
-		// console.log(self.start().toISOString().substring(0, 10), calendar.days()[self.start().toISOString().substring(0, 10)]);
-
-		self.end = ko.observable(new Date(task.desired_date_with_time));
-		self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
-
-		self.parts = ko.pureComputed(function() {
-
-			return (self.end() - self.start()) / (calendar.taskPartSize() * 60 * 1000);
-
-		});
-
-		self.assignees = ko.observable(task.assignments.map(a => new Assignee(a)));
-
-		self.assignees().forEach(a => calendar.tasks()[task.id] || a.tasks().push(self));
 
 	}
 

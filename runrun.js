@@ -24,14 +24,20 @@
 			self.lunchStartHours = ko.observable(12);
 			self.lunchStartMinutes = ko.observable(0);
 
-
 			self.week = ko.computed(function() {
 				return new Week(self.currentDay());
 			});
 
-			self.tasks = ko.observable(tasks.map(t => new Task(t)));
+			self.assignees = ko.observable({});
 
-			// self.tasks(tasks);
+			self.tasks = ko.observable({});
+			self.tasksArray = ko.observable(tasks.map(t => new Task(t)));
+
+			tasks = self.tasks();
+
+			self.tasksArray().forEach((t) => {
+				tasks[t.id()] = t;
+			});
 		}
 	}
 
@@ -45,8 +51,10 @@
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
 
-		self.businessStartDay = ko.observable(1); // monday
-		self.businessEndDay = ko.observable(5); // friday
+		self.businessStartDay = ko.observable(1);
+		// monday
+		self.businessEndDay = ko.observable(5);
+		// friday
 
 		var dayInMilis = 1000 * 60 * 60 * 24;
 		var dateMilis = +date;
@@ -102,6 +110,7 @@
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
 
+		self.id = function() { return task.id };
 		self.raw = ko.observable(task);
 
 		if (task.desired_start_date) {
@@ -119,13 +128,37 @@
 
 		});
 
+		self.assignees = ko.observable(task.assignments.map(a => new Assignee(a)));
+
+		self.assignees().forEach(a => calendar.tasks()[task.id] || a.tasks().push(self));
+
 	}
 
+	function Assignee(assignment) {
 
+// 		console.log(0, assignment.assignee_id);
+
+		var self = this,
+			calendar = CalendarViewModel.getInstance();
+
+		if (calendar.assignees()[assignment.assignee_id]) {
+		console.log(1, assignment.assignee_id);
+			return calendar.assignees()[assignment.assignee_id];
+		} else {
+		console.log(2, assignment.assignee_id);
+			self.assignment = ko.observable(assignment);
+			self.id = ko.observable(assignment.assignee_id);
+			self.name = ko.observable(assignment.assignee_name);
+			self.tasks = ko.observable([]);
+
+			calendar.assignees()[assignment.assignee_id] = self;
+		}
+
+	}
 
 	function makeItHappen() {
 
-		fetch("https://runrun.it/api/tasks?limit=1&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
+		fetch("https://runrun.it/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -152,8 +185,5 @@
 
 		});
 	}
-
-	mih = makeItHappen;
-
 
 }());

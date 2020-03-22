@@ -48,9 +48,12 @@
 
 					if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
 						self.week(new Week(self.currentDay()));
+						self.calculateTaskParts();
 					}
 
 				});
+
+				self.calculateTaskParts();
 
 				// 			    self.week.subscribe(function() { console.log('change week') });
 				console.log('done', new Date-start, 'ms');
@@ -60,7 +63,7 @@
 	}
 
 	CalendarViewModel.prototype.loadTasks = function() {
-		return fetch("/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
+		return fetch("/api/tasks?limit=50&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -221,24 +224,28 @@
 
 		if (task.desired_start_date || task.desired_date_with_time) {
 
-			if (task.desired_start_date) {
+			if (task.desired_start_date && task.desired_date_with_time) {
+				
+				self.start = ko.observable(new Date(task.desired_start_date));
+				self.end = ko.observable(new Date(task.desired_date_with_time));
+
+			} else if (task.desired_start_date) {
+
 				self.start = ko.observable(new Date(task.desired_start_date));
 				self.end = ko.observable(new Date(+new Date(task.desired_start_date) + task.current_estimate_seconds * 1000));
 
-				var start = new Day(self.start());
-				var end = new Day(self.end());
-
-				
-
-
 			} else if(task.desired_date_with_time) {
+
 				self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
 				self.end = ko.observable(new Date(task.desired_date_with_time));
+
 			}
 
 			// console.log(self.start().toISOString().substring(0, 10), calendar.days()[self.start().toISOString().substring(0, 10)]);
 
 			self.currentEstimateSeconds = ko.observable(task.current_estimate_seconds);
+
+			self.parts = ko.observable([]);
 
 			self.totalParts = ko.pureComputed(function() {
 
@@ -250,6 +257,40 @@
 
 			self.assignees().forEach(a => calendar.tasks()[task.id] || a.tasks().push(self));
 		}
+
+	}
+
+	CalendarViewModel.prototype.calculateTaskParts = function() {
+
+		var self = this, parts = self.week().parts();
+
+		self.tasksArray().forEach(task => {
+			var start = parts.indexOf(+task.start()), end = parts.indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
+
+			// calculate task parts
+			console.log('start', task.id(), start, task.start());
+			console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
+
+			if (start > -1 && end > -1) {
+
+				task.parts(parts.slice(start, end+1));
+
+// 				console.log('task parts', ko.toJS(task));
+				console.log(task.parts().map(d => new Date(d)).join('\n'));
+			} else if (start > -1) {
+// 				console.log('task parts 2', ko.toJS(task));
+				task.parts(parts.slice(start, start + task.totalParts()));
+// 				console.log('task parts', ko.toJS(task));
+				console.log(task.parts().map(d => new Date(d)).join('\n'));
+			} else if (end > -1) {
+// 				console.log('task parts 3', ko.toJS(task));
+				task.parts(parts.slice(Math.max(end - task.totalParts(), 0), end+1));
+// 				console.log('task parts', ko.toJS(task));
+// 				console.log(task.parts().map(d => new Date(d)).join('\n'));
+			} else {
+			    task.parts([]);
+			}
+		})
 
 	}
 

@@ -13,7 +13,13 @@
 		self.lunchStartHours = ko.observable(12);
 		self.lunchStartMinutes = ko.observable(0);
 
+		self.businessStartDay = ko.observable(1);
+		// monday
+		self.businessEndDay = ko.observable(5);
+		// friday
+
 		self.days = ko.observable({});
+		self.weeks = ko.observable({});
 
 		self.init = function(date) {
 
@@ -40,13 +46,13 @@
 
 					console.log(day, self.currentDay(), +day < +self.week().days()[0].start(), +self.week().days()[6].end() < +day);
 
-                    if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
-                    	self.week(new Week(self.currentDay()));
-                    }
+					if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
+						self.week(new Week(self.currentDay()));
+					}
 
 				});
 
-// 			    self.week.subscribe(function() { console.log('change week') });
+				// 			    self.week.subscribe(function() { console.log('change week') });
 
 			});
 		}
@@ -81,78 +87,90 @@
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
 
-		self.businessStartDay = ko.observable(1);
-		// monday
-		self.businessEndDay = ko.observable(5);
-		// friday
-
 		var dayInMilis = 1000 * 60 * 60 * 24;
 		var dateMilis = +date;
 		var weekStart = new Date(+date - date.getDay() * dayInMilis);
+		self.id = function() {
+			console.log('weekStart', weekStart);
+			return weekStart.toISOString().substring(0, 10)
+		};
 
-		self.days = ko.observable([]);
-
-		for (var i = 0, j = 7; i+1 < j; i++) {
+		if (calendar.weeks()[self.id()]) {
+			return calendar.weeks()[self.id()];
+		} else {
             
-            var yesterday = new Date(+weekStart + (i - 1) * dayInMilis);
-            var yesterdayKey = yesterday.toISOString().substring(0, 10);
+            calendar.weeks()[self.id()] = self;
 
-            var today = new Date(+weekStart + i * dayInMilis);
-            var todayKey = today.toISOString().substring(0, 10);
-            
-            var tomorrow = new Date(+weekStart + (i + 1) * dayInMilis);
-            var tomorrowKey = tomorrow.toISOString().substring(0, 10);
+			self.days = ko.observable([]);
 
-            calendar.days()[todayKey] = calendar.days()[todayKey] || ko.observable(new Day(today, self, calendar.days()[yesterdayKey], calendar.days()[tomorrowKey]));
-			self.days()[i] = calendar.days()[todayKey]();
+			for (var i = 0, j = 7; i + 1 < j; i++) {
 
-            if (i + 1 < j) {
-			    calendar.days()[tomorrowKey] = calendar.days()[tomorrowKey] || ko.observable(new Day(tomorrow, self, calendar.days()[todayKey]));
-			    self.days()[i + 1] = calendar.days()[tomorrowKey]();
-// 			    console.log(i, tomorrowKey, calendar.days()[tomorrowKey]());
-            }
+				var yesterday = new Date(+weekStart + (i - 1) * dayInMilis);
+				var yesterdayKey = yesterday.toISOString().substring(0, 10);
 
-            if(calendar.days()[tomorrowKey]) {
-		        calendar.days()[todayKey]().tomorrow = calendar.days()[tomorrowKey];
+				var today = new Date(+weekStart + i * dayInMilis);
+				var todayKey = today.toISOString().substring(0, 10);
+
+				var tomorrow = new Date(+weekStart + (i + 1) * dayInMilis);
+				var tomorrowKey = tomorrow.toISOString().substring(0, 10);
+
+				calendar.days()[todayKey] = calendar.days()[todayKey] || ko.observable(new Day(today, self, calendar.days()[yesterdayKey], calendar.days()[tomorrowKey]));
+				self.days()[i] = calendar.days()[todayKey]();
+
+				if (i + 1 < j) {
+					calendar.days()[tomorrowKey] = calendar.days()[tomorrowKey] || ko.observable(new Day(tomorrow, self, calendar.days()[todayKey]));
+					self.days()[i + 1] = calendar.days()[tomorrowKey]();
+					// 			    console.log(i, tomorrowKey, calendar.days()[tomorrowKey]());
+				}
+
+				if (calendar.days()[tomorrowKey]) {
+					calendar.days()[todayKey]().tomorrow = calendar.days()[tomorrowKey];
+				}
+
 			}
 
+			self.start = ko.observable(self.days()[0]);
+
+			var partsHelper = self.days().filter(d => d.isBusinessDay()).map(d => [d.start(), d.end()]).reduce((acc, i) => acc.concat(i));
+
+			self.parts = [];
+			var firstHalfHours = calendar.lunchStartHours() - calendar.dayStartHours();
+			var secondHalfHours = calendar.businessHours() - firstHalfHours;
+			var lunchDurationHours = calendar.lunchDurationInMinutes() / 60;
+			var partInMilis = Math.max(calendar.taskPartSize() * 60 * 1000, 1);
+
+			for (var i = 0, j = partsHelper.length; i + 1 < j; i += 2) {
+
+				var startFirstTime = +partsHelper[i];
+				var endFirstTime = startFirstTime + firstHalfHours * 60 * 60 * 1000;
+
+				var endSecondTime = +partsHelper[i + 1];
+				var startSecondTime = endSecondTime - secondHalfHours * 60 * 60 * 1000;
+
+				//             console.log(new Date(startFirstTime), new Date(endFirstTime));
+
+				while (startFirstTime < endFirstTime) {
+
+					//                 console.log(new Date(startFirstTime), new Date(startFirstTime+partInMilis));
+					self.parts.push(startFirstTime);
+
+					startFirstTime += partInMilis;
+				}
+
+				while (startSecondTime < endSecondTime) {
+
+					//                 console.log(new Date(startFirstTime), new Date(startFirstTime+partInMilis));
+					self.parts.push(startSecondTime);
+
+					startSecondTime += partInMilis;
+				}
+
+				//             console.log(new Date(startSecondTime), new Date(endSecondTime));
+
+			}
+
+			self.parts = ko.observable(self.parts);
 		}
-
-		self.start = ko.observable(self.days()[0]);
-
-        var partsHelper = self.days().filter(d => d.isBusinessDay()).map(d => [d.start(), d.end()]).reduce((acc, i) => acc.concat(i));
-
-        self.parts = [];
-        var firstHalfHours = calendar.lunchStartHours() - calendar.dayStartHours();
-        var secondHalfHours = calendar.businessHours() - firstHalfHours;
-        var lunchDurationHours = calendar.lunchDurationInMinutes() / 60;
-        var partInMilis = Math.max(calendar.taskPartSize() * 60 * 1000, 1);
-
-        for (var i = 0, j = partsHelper.length; i+1 < j; i+=2) {
-
-            var startFirstTime = +partsHelper[i];
-            var endFirstTime = startFirstTime + firstHalfHours * 60 * 60 * 1000;
-
-            var endSecondTime = +partsHelper[i+1];
-            var startSecondTime = endSecondTime - secondHalfHours * 60 * 60 * 1000;
-
-//             console.log(new Date(startFirstTime), new Date(endFirstTime));
-
-            while (startFirstTime < endFirstTime) {
-
-//                 console.log(new Date(startFirstTime), new Date(startFirstTime+partInMilis));
-                self.parts.push(startFirstTime);
-
-            	startFirstTime += partInMilis;
-            }
-
-            console.log(new Date(startSecondTime), new Date(endSecondTime));
-
-            var end = partsHelper[i+1];
-
-        }
-
-        self.parts = ko.observable(self.parts);
 
 	}
 
@@ -186,7 +204,7 @@
 
 		var isHoliday = ko.observable(false);
 		self.isBusinessDay = ko.pureComputed(function() {
-			return !isHoliday() && self.start().getDay() >= week.businessStartDay() && self.start().getDay() <= week.businessEndDay();
+			return !isHoliday() && self.start().getDay() >= calendar.businessStartDay() && self.start().getDay() <= calendar.businessEndDay();
 		});
 
 	}
@@ -196,7 +214,9 @@
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
 
-		self.id = function() { return task.id };
+		self.id = function() {
+			return task.id
+		};
 		self.raw = ko.observable(task);
 
 		if (task.desired_start_date) {
@@ -224,7 +244,7 @@
 
 	function Assignee(assignment) {
 
-// 		console.log(0, assignment.assignee_id);
+		// 		console.log(0, assignment.assignee_id);
 
 		var self = this,
 			calendar = CalendarViewModel.getInstance();
@@ -244,13 +264,13 @@
 
 	function makeItHappen() {
 
-		CalendarViewModel.getInstance().init(new Date('2020-03-20'));
+		CalendarViewModel.getInstance().init(new Date('2020-03-20T03:00'));
 
 		window.calendar = CalendarViewModel.getInstance();
 
 	}
 
-	
+
 
 	if (!window.ko) {
 		var newScript = document.createElement("script");

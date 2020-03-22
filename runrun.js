@@ -1,44 +1,62 @@
 (function() {
 
-	if (!window.ko) {
-		var newScript = document.createElement("script");
-		newScript.src = "https://knockoutjs.com/downloads/knockout-3.5.1.js";
-		newScript.onload = makeItHappen;
-		document.body.appendChild(newScript);
-	} else {
-		makeItHappen();
-	}
-
 	function CalendarViewModel() {
 
 		var self = this;
 
-		self.init = function(tasks) {
+		self.init = function() {
 
-			self.taskPartSize = ko.observable(15);
-			self.currentDay = ko.observable(new Date);
-			self.dayStartHours = ko.observable(9);
-			self.dayStartMinutes = ko.observable(0);
-			self.businessHours = ko.observable(8);
-			self.lunchDurationInMinutes = ko.observable(60);
-			self.lunchStartHours = ko.observable(12);
-			self.lunchStartMinutes = ko.observable(0);
+			self.loadTags().then((tasks) => {
 
-			self.week = ko.computed(function() {
-				return new Week(self.currentDay());
-			});
+				console.log('done');
 
-			self.assignees = ko.observable({});
+				window.calendar = CalendarViewModel.getInstance();
 
-			self.tasks = ko.observable({});
-			self.tasksArray = ko.observable(tasks.map(t => new Task(t)));
+				self.taskPartSize = ko.observable(15);
+				self.currentDay = ko.observable(new Date);
+				self.dayStartHours = ko.observable(9);
+				self.dayStartMinutes = ko.observable(0);
+				self.businessHours = ko.observable(8);
+				self.lunchDurationInMinutes = ko.observable(60);
+				self.lunchStartHours = ko.observable(12);
+				self.lunchStartMinutes = ko.observable(0);
 
-			tasks = self.tasks();
+				self.week = ko.computed(function() {
+					return new Week(self.currentDay());
+				});
 
-			self.tasksArray().forEach((t) => {
-				tasks[t.id()] = t;
+				self.assignees = ko.observable({});
+
+				self.tasks = ko.observable({});
+				self.tasksArray = ko.observable(tasks.map(t => new Task(t)));
+
+				tasks = self.tasks();
+
+				self.tasksArray().forEach((t) => {
+					tasks[t.id()] = t;
+				});
+
 			});
 		}
+	}
+
+	CalendarViewModel.prototype.loadTags = function() {
+		return fetch("https://runrun.it/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
+			"credentials": "include",
+			"headers": {
+				"accept": "application/json, text/javascript, */*; q=0.01",
+				"accept-language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+				"if-none-match": "\"f5c8b35f17ee1ae405f171e50df1f9ec\"",
+				"sec-fetch-dest": "empty",
+				"sec-fetch-mode": "cors",
+				"sec-fetch-site": "same-origin",
+				"x-requested-with": "XMLHttpRequest"
+			},
+			"referrerPolicy": "no-referrer-when-downgrade",
+			"body": null,
+			"method": "GET",
+			"mode": "cors"
+		}).then((r) => r.json());
 	}
 
 	CalendarViewModel.getInstance = function() {
@@ -142,10 +160,8 @@
 			calendar = CalendarViewModel.getInstance();
 
 		if (calendar.assignees()[assignment.assignee_id]) {
-		console.log(1, assignment.assignee_id);
 			return calendar.assignees()[assignment.assignee_id];
 		} else {
-		console.log(2, assignment.assignee_id);
 			self.assignment = ko.observable(assignment);
 			self.id = ko.observable(assignment.assignee_id);
 			self.name = ko.observable(assignment.assignee_name);
@@ -158,32 +174,19 @@
 
 	function makeItHappen() {
 
-		fetch("https://runrun.it/api/tasks?limit=5&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
-			"credentials": "include",
-			"headers": {
-				"accept": "application/json, text/javascript, */*; q=0.01",
-				"accept-language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
-				"if-none-match": "\"f5c8b35f17ee1ae405f171e50df1f9ec\"",
-				"sec-fetch-dest": "empty",
-				"sec-fetch-mode": "cors",
-				"sec-fetch-site": "same-origin",
-				"x-requested-with": "XMLHttpRequest"
-			},
-			"referrerPolicy": "no-referrer-when-downgrade",
-			"body": null,
-			"method": "GET",
-			"mode": "cors"
-		}).then((r) => r.json()).then((tasks) => {
+		CalendarViewModel.getInstance().init();
 
-			CalendarViewModel.getInstance().init(tasks);
+	}
 
-			task = new Task(tasks[0]);
+	
 
-			console.log('done');
-
-			window.calendar = CalendarViewModel.getInstance();
-
-		});
+	if (!window.ko) {
+		var newScript = document.createElement("script");
+		newScript.src = "https://knockoutjs.com/downloads/knockout-3.5.1.js";
+		newScript.onload = makeItHappen;
+		document.body.appendChild(newScript);
+	} else {
+		makeItHappen();
 	}
 
 }());

@@ -1,0 +1,11 @@
+<section id="calendar">
+			<div id="week">
+				<div class="assignee" data-bind="foreach: assignees">
+					<div class="day" data-bind="foreach: $parent.week().days">
+						<div class="part" data-bind="foreach: parts">
+							<span data-bind="text: new Date(+$data)"></span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>

@@ -55,6 +55,8 @@
 
 				self.calculateTaskParts();
 
+				self.render();
+
 				// 			    self.week.subscribe(function() { console.log('change week') });
 				console.log('done', new Date - start, 'ms');
 
@@ -79,6 +81,28 @@
 			"method": "GET",
 			"mode": "cors"
 		}).then((r) => r.json());
+	}
+
+	CalendarViewModel.prototype.render = function() {
+
+		var self = this;
+
+        document.body.innerHTML = `<section id="calendar">
+			<div id="week">
+				<div class="assignee" data-bind="foreach: assignees">
+					<div class="day" data-bind="foreach: $parent.week().days">
+						<div class="part" data-bind="foreach: parts">
+							<span data-bind="text: new Date(+$data)"></span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>`;
+
+		var calendarEl = document.querySelector('#calendar');
+
+		ko.applyBindings(self, calendarEl);
+
 	}
 
 	CalendarViewModel.getInstance = function() {
@@ -209,6 +233,24 @@
 		self.isBusinessDay = ko.pureComputed(function() {
 			return !isHoliday() && self.start().getDay() >= calendar.businessStartDay() && self.start().getDay() <= calendar.businessEndDay();
 		});
+
+		var partInMilis = Math.max(calendar.taskPartSize() * 60 * 1000, 1);
+
+		self.parts = ko.pureComputed(function() {
+
+			var start = +self.start(),
+				end = +self.end(),
+				parts = [];
+
+			while (start < end) {
+
+				parts.push(start);
+
+				start += partInMilis;
+			}
+
+			return parts;
+		})
 	}
 
 	function Task(task) {
@@ -273,8 +315,8 @@
 				end = parts.indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
 
 			// calculate task parts
-			console.log('start', task.id(), start, task.start());
-			console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
+			// console.log('start', task.id(), start, task.start());
+			// console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
 
 			if (start > -1 && end > -1) {
 
@@ -317,23 +359,26 @@
 			});
 
 			self.partTasks = ko.pureComputed(function() {
-                var partTasks = {};
+				var partTasks = {};
 
-//                 console.log('partTasks', self.id());
+				//                 console.log('partTasks', self.id());
 
 				self.tasks().forEach(task => {
 					task.parts().forEach((part, ix) => {
 
-						if(!partTasks[part]) {
+						if (!partTasks[part]) {
 							partTasks[part] = [];
 						}
 
-						partTasks[part].push({ task: task.id, part: part });
+						partTasks[part].push({
+							task: task.id,
+							part: part
+						});
 
 					})
 				})
 
-                return partTasks;
+				return partTasks;
 			});
 
 			calendar.assignees()[assignment.assignee_id] = self;
@@ -344,10 +389,10 @@
 	}
 
 	Assignee.prototype.partsOf = function(day) {
-		
+
 		var self = this;
 
-        return Object.keys(self.partTasks()).sort().filter(p => p >= +day.start() && p < +day.end()).map(p => self.partTasks()[p]);
+		return Object.keys(self.partTasks()).sort().filter(p => p >= +day.start() && p < +day.end()).map(p => self.partTasks()[p]);
 	}
 
 	function makeItHappen() {

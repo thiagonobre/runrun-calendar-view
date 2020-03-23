@@ -1,11 +1,35 @@
-<section id="calendar">
-			<div id="week">
-				<div class="assignee" data-bind="foreach: assignees">
-					<div class="day" data-bind="foreach: $parent.week().days">
-						<div class="part" data-bind="foreach: parts">
-							<span data-bind="text: new Date(+$data)"></span>
-						</div>
-					</div>
-				</div>
+<div class="buttons">
+				<button data-bind="click: prevWeek">Semana anterior</button>
+				<button data-bind="click: goToday">Hoje</button>
+				<button data-bind="click: nextWeek">Próxima semana</button>
 			</div>
-		</section>
+			<div id="week">
+			<!-- ko foreach: assignees -->
+			<div class="assignee" data-bind="if: show">
+				<h3 data-bind="text: name"></h3>
+				<!-- ko foreach: $parent.week().days -->
+				<div class="day" style="display: inline-block; border: 1px solid black; width: 252px">
+					<!-- ko with: $data.start -->
+					<h5 data-bind="text: $data.toDateString()"></h5>
+					<!-- /ko -->
+					<!-- ko foreach: parts -->
+					<div class="part" style="height: 25px; overflow: hidden;">
+						<table width="100%" style="height: 100%">
+							<tr>
+								<!-- ko with: new Date(+$data).toTimeString().slice(0, 5) -->
+								<td data-bind="text: $data"></td>
+								<!-- /ko -->
+								<!-- ko foreach: $parents[1].partTasks()[$data] -->
+								<!-- ko with: $root.tasks()[$data.task()] -->
+								<td style="word-wrap: nowrap; overflow: hidden;" data-bind="style: { backgroundColor: color }"><a data-bind="attr: { href: '/pt-BR/tasks/' + id(), title: title() }" target="_blank"><span data-bind="text: id"></span></a></td>
+								<!-- /ko -->
+								<!-- /ko -->
+							</tr>
+						</table>
+					</div>
+					<!-- /ko -->
+				</div>
+				<!-- /ko -->
+			</div>
+			<!-- /ko -->
+		</div>

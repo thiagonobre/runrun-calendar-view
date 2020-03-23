@@ -18,6 +18,10 @@
 		self.businessEndDay = ko.observable(5);
 		// friday
 
+		self.taskColors = ko.pureComputed(function() {
+			return ['#FFFAFA', '#F0FFF0', '#F5FFFA', '#F0FFFF', '#F0F8FF', '#F8F8FF', '#F5F5F5', '#FFF5EE', '#F5F5DC', '#FDF5E6', '#FFFAF0', '#FFFFF0', '#FAEBD7', '#FAF0E6', '#FFF0F5', '#FFE4E1']
+		})
+
 		self.days = ko.observable({});
 		self.weeks = ko.observable({});
 
@@ -25,7 +29,11 @@
 
 			var start = new Date;
 
-			self.currentDay(date || new Date);
+			if (date) {
+				self.currentDay(date);	
+			} else {
+				self.goToday();
+			}
 
 			self.loadTasks().then((tasks) => {
 
@@ -44,7 +52,7 @@
 
 				self.currentDay.subscribe(function(day) {
 
-					console.log(day, self.currentDay(), +day < +self.week().days()[0].start(), +self.week().days()[6].end() < +day);
+					// console.log(day, self.currentDay(), +day < +self.week().days()[0].start(), +self.week().days()[6].end() < +day);
 
 					if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
 						self.week(new Week(self.currentDay()));
@@ -62,6 +70,42 @@
 
 			});
 		}
+	}
+
+	CalendarViewModel.prototype.nextWeek = function() {
+
+		var self = this;
+
+		var date = new Date(+self.currentDay() + 7 * 24 * 60 * 60 * 1000);
+
+		date.setHours(9);
+
+		self.currentDay(date);
+
+	}
+
+	CalendarViewModel.prototype.prevWeek = function() {
+
+		var self = this;
+
+		var date = new Date(+self.currentDay() - 7 * 24 * 60 * 60 * 1000);
+
+		date.setHours(9);
+
+		self.currentDay(date);
+
+	}
+
+	CalendarViewModel.prototype.goToday = function() {
+
+		var self = this;
+
+		var today = new Date;
+
+		today.setHours(10); // because of timezone 
+
+		self.currentDay(today);
+
 	}
 
 	CalendarViewModel.prototype.loadTasks = function() {
@@ -87,19 +131,54 @@
 
 		var self = this;
 
-        document.body.innerHTML = `<section id="calendar">
-			<div id="week">
-				<div class="assignee" data-bind="foreach: assignees">
-					<div class="day" data-bind="foreach: $parent.week().days">
-						<div class="part" data-bind="foreach: parts">
-							<span data-bind="text: new Date(+$data)"></span>
-						</div>
-					</div>
-				</div>
-			</div>
-		</section>`;
+		document.querySelector('#application-header').style.display = 'none';
+		document.querySelector('#application_main_wrapper').style.display = 'none';
 
-		var calendarEl = document.querySelector('#calendar');
+		if (document.querySelector('#calendar')) {
+			document.querySelector('#calendar').remove();
+		}
+
+		var calendarEl = document.createElement('section');
+
+		calendarEl.id = 'calendar';
+
+		calendarEl.innerHTML = `<div class="buttons">
+				<button data-bind="click: prevWeek">Semana anterior</button>
+				<button data-bind="click: goToday">Hoje</button>
+				<button data-bind="click: nextWeek">Próxima semana</button>
+			</div>
+			<div id="week">
+			<!-- ko foreach: assignees -->
+			<div class="assignee" data-bind="if: show">
+				<h3 data-bind="text: name"></h3>
+				<!-- ko foreach: $parent.week().days -->
+				<div class="day" style="display: inline-block; border: 1px solid black; width: 252px">
+					<!-- ko with: $data.start -->
+					<h5 data-bind="text: $data.toDateString()"></h5>
+					<!-- /ko -->
+					<!-- ko foreach: parts -->
+					<div class="part" style="height: 25px; overflow: hidden;">
+						<table width="100%" style="height: 100%">
+							<tr>
+								<!-- ko with: new Date(+$data).toTimeString().slice(0, 5) -->
+								<td data-bind="text: $data"></td>
+								<!-- /ko -->
+								<!-- ko foreach: $parents[1].partTasks()[$data] -->
+								<!-- ko with: $root.tasks()[$data.task()] -->
+								<td style="word-wrap: nowrap; overflow: hidden;" data-bind="style: { backgroundColor: color }"><a data-bind="attr: { href: '/pt-BR/tasks/' + id(), title: title() }" target="_blank"><span data-bind="text: id"></span></a></td>
+								<!-- /ko -->
+								<!-- /ko -->
+							</tr>
+						</table>
+					</div>
+					<!-- /ko -->
+				</div>
+				<!-- /ko -->
+			</div>
+			<!-- /ko -->
+		</div>`;
+
+		document.body.appendChild(calendarEl);
 
 		ko.applyBindings(self, calendarEl);
 
@@ -255,12 +334,19 @@
 
 	function Task(task) {
 
-		var self = this,
+		var self = Object.create(task),
 			calendar = CalendarViewModel.getInstance();
 
 		self.id = ko.pureComputed(function() {
 			return task.id
 		});
+
+		self.color = ko.pureComputed(function() {
+			return calendar.taskColors()[self.id() % calendar.taskColors().length];
+		});
+
+		self.title = ko.observable(task.title);
+
 		self.raw = ko.observable(task);
 
 		if (task.desired_start_date || task.desired_date_with_time) {
@@ -302,6 +388,8 @@
 
 			self.assignees().forEach(a => calendar.tasks()[task.id] || a.tasks().push(self));
 		}
+
+		return self;
 
 	}
 
@@ -358,7 +446,7 @@
 				return self.team() == 'Front-end Ongoing - OCC';
 			});
 
-			self.partTasks = ko.pureComputed(function() {
+			self.partTasks = ko.computed(function() {
 				var partTasks = {};
 
 				//                 console.log('partTasks', self.id());
@@ -397,7 +485,7 @@
 
 	function makeItHappen() {
 
-		CalendarViewModel.getInstance().init(new Date('2020-03-20T03:00'));
+		CalendarViewModel.getInstance().init();
 
 		window.calendar = CalendarViewModel.getInstance();
 

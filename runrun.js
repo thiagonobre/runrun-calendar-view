@@ -30,7 +30,7 @@
 			var start = new Date;
 
 			if (date) {
-				self.currentDay(date);	
+				self.currentDay(date);
 			} else {
 				self.goToday();
 			}
@@ -42,10 +42,10 @@
 				self.tasks = ko.observable({});
 				self.tasksArray = ko.observable(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
 
-				tasks = self.tasks();
+				// tasks = self.tasks();
 
 				self.tasksArray().forEach((t, i) => {
-					tasks[t.id()] = t;
+					self.tasks()[t.id()] = t;
 				});
 
 				self.week = ko.observable(new Week(self.currentDay()));
@@ -56,13 +56,15 @@
 
 					if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
 						self.week(new Week(self.currentDay()));
+						// self.tasksArray(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
 						self.calculateTaskParts();
+						self.assignees().forEach(a => a.refreshPartTasks());
 					}
 
 				});
 
 				self.calculateTaskParts();
-
+				self.assignees().forEach(a => a.refreshPartTasks());
 				self.render();
 
 				// 			    self.week.subscribe(function() { console.log('change week') });
@@ -141,6 +143,7 @@
 		var calendarEl = document.createElement('section');
 
 		calendarEl.id = 'calendar';
+		calendarEl.style.padding = '5px;'
 
 		calendarEl.innerHTML = `<div class="buttons">
 				<button data-bind="click: prevWeek">Semana anterior</button>
@@ -403,8 +406,8 @@
 				end = parts.indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
 
 			// calculate task parts
-			// console.log('start', task.id(), start, task.start());
-			// console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
+			console.log('start', task.id(), start, task.start());
+			console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
 
 			if (start > -1 && end > -1) {
 
@@ -446,28 +449,7 @@
 				return self.team() == 'Front-end Ongoing - OCC';
 			});
 
-			self.partTasks = ko.computed(function() {
-				var partTasks = {};
-
-				//                 console.log('partTasks', self.id());
-
-				self.tasks().forEach(task => {
-					task.parts().forEach((part, ix) => {
-
-						if (!partTasks[part]) {
-							partTasks[part] = [];
-						}
-
-						partTasks[part].push({
-							task: task.id,
-							part: part
-						});
-
-					})
-				})
-
-				return partTasks;
-			});
+			self.partTasks = ko.observable({});
 
 			calendar.assignees()[assignment.assignee_id] = self;
 
@@ -475,6 +457,32 @@
 		}
 
 	}
+
+	Assignee.prototype.refreshPartTasks = function() {
+
+		var self = this;
+
+		var partTasks = {};
+
+		//                 console.log('partTasks', self.id());
+
+		self.tasks().forEach(task => {
+			task.parts().forEach((part) => {
+
+				if (!partTasks[part]) {
+					partTasks[part] = [];
+				}
+
+				partTasks[part].push({
+					task: task.id,
+					part: part
+				});
+
+			})
+		})
+
+		self.partTasks(partTasks);
+	};
 
 	Assignee.prototype.partsOf = function(day) {
 
@@ -485,7 +493,7 @@
 
 	function makeItHappen() {
 
-		CalendarViewModel.getInstance().init();
+		CalendarViewModel.getInstance().init(new Date('2020-03-22T04:00'));
 
 		window.calendar = CalendarViewModel.getInstance();
 

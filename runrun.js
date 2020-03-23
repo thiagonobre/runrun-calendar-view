@@ -210,6 +210,7 @@
 			return !isHoliday() && self.start().getDay() >= calendar.businessStartDay() && self.start().getDay() <= calendar.businessEndDay();
 		});
 
+        self.assignees
 	}
 
 	function Task(task) {
@@ -309,7 +310,11 @@
 			self.assignment = ko.observable(assignment);
 			self.id = ko.observable(assignment.assignee_id);
 			self.name = ko.observable(assignment.assignee_name);
+			self.team = ko.observable(assignment.team_name);
 			self.tasks = ko.observable([]);
+			self.show = ko.pureComputed(function() {
+				return self.team() == 'Front-end Ongoing - OCC';
+			});
 
 			calendar.assignees()[assignment.assignee_id] = self;
 		}

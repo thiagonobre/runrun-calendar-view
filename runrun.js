@@ -29,7 +29,7 @@
 
 			self.loadTasks().then((tasks) => {
 
-				self.assignees = ko.observable({});
+				self.assignees = ko.observable([]);
 
 				self.tasks = ko.observable({});
 				self.tasksArray = ko.observable(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
@@ -56,7 +56,7 @@
 				self.calculateTaskParts();
 
 				// 			    self.week.subscribe(function() { console.log('change week') });
-				console.log('done', new Date-start, 'ms');
+				console.log('done', new Date - start, 'ms');
 
 			});
 		}
@@ -101,8 +101,8 @@
 		if (calendar.weeks()[self.id()]) {
 			return calendar.weeks()[self.id()];
 		} else {
-            
-            calendar.weeks()[self.id()] = self;
+
+			calendar.weeks()[self.id()] = self;
 
 			self.days = ko.observable([]);
 
@@ -209,8 +209,6 @@
 		self.isBusinessDay = ko.pureComputed(function() {
 			return !isHoliday() && self.start().getDay() >= calendar.businessStartDay() && self.start().getDay() <= calendar.businessEndDay();
 		});
-
-        self.assignees
 	}
 
 	function Task(task) {
@@ -226,7 +224,7 @@
 		if (task.desired_start_date || task.desired_date_with_time) {
 
 			if (task.desired_start_date && task.desired_date_with_time) {
-				
+
 				self.start = ko.observable(new Date(task.desired_start_date));
 				self.end = ko.observable(new Date(task.desired_date_with_time));
 
@@ -235,7 +233,7 @@
 				self.start = ko.observable(new Date(task.desired_start_date));
 				self.end = ko.observable(new Date(+new Date(task.desired_start_date) + task.current_estimate_seconds * 1000));
 
-			} else if(task.desired_date_with_time) {
+			} else if (task.desired_date_with_time) {
 
 				self.start = ko.observable(new Date(+new Date(task.desired_date_with_time) - task.current_estimate_seconds * 1000));
 				self.end = ko.observable(new Date(task.desired_date_with_time));
@@ -248,9 +246,9 @@
 
 			self.parts = ko.observable([]);
 
-			self.dayParts = ko.pureComputed(function(){
+			/*self.dayParts = ko.pureComputed(function(){
 				return self.parts().map(p => new Date(p).toISOString().slice(0, 10));
-			})
+			})*/
 
 			self.totalParts = ko.pureComputed(function() {
 
@@ -267,10 +265,12 @@
 
 	CalendarViewModel.prototype.calculateTaskParts = function() {
 
-		var self = this, parts = self.week().parts();
+		var self = this,
+			parts = self.week().parts();
 
 		self.tasksArray().forEach(task => {
-			var start = parts.indexOf(+task.start()), end = parts.indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
+			var start = parts.indexOf(+task.start()),
+				end = parts.indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
 
 			// calculate task parts
 			console.log('start', task.id(), start, task.start());
@@ -278,20 +278,20 @@
 
 			if (start > -1 && end > -1) {
 
-				task.parts(parts.slice(start, end+1));
+				task.parts(parts.slice(start, end + 1));
 
 			} else if (start > -1) {
-				
+
 				task.parts(parts.slice(start, start + task.totalParts()));
-			
+
 			} else if (end > -1) {
-			
-				task.parts(parts.slice(Math.max(end - task.totalParts(), 0), end+1));
-			
+
+				task.parts(parts.slice(Math.max(end - task.totalParts(), 0), end + 1));
+
 			} else {
-			
-			    task.parts([]);
-			
+
+				task.parts([]);
+
 			}
 		})
 
@@ -316,7 +316,34 @@
 				return self.team() == 'Front-end Ongoing - OCC';
 			});
 
+			self.partTasks = ko.pureComputed(function() {
+                var partTasks = {};
+
+//                 console.log('partTasks', self.id());
+
+				self.tasks().forEach(task => {
+					task.parts().forEach((part, ix) => {
+
+						if(!partTasks[part]) {
+							partTasks[part] = [];
+						}
+
+						partTasks[part].push({ task: task.id, part: part });
+
+						if (ix + 1 == task.parts().length) {
+							partTasks[part].sort((a, b) => a.part-b.part);
+						}
+					})
+				})
+
+                return partTasks;
+			});
+
+
+
 			calendar.assignees()[assignment.assignee_id] = self;
+
+			calendar.assignees().push(self);
 		}
 
 	}

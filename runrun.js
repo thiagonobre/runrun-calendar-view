@@ -63,7 +63,7 @@
 	}
 
 	CalendarViewModel.prototype.loadTasks = function() {
-		return fetch("/api/tasks?limit=50&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
+		return fetch("/api/tasks?limit=250&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -330,22 +330,24 @@
 
 						partTasks[part].push({ task: task.id, part: part });
 
-						if (ix + 1 == task.parts().length) {
-							partTasks[part].sort((a, b) => a.part-b.part);
-						}
 					})
 				})
 
                 return partTasks;
 			});
 
-
-
 			calendar.assignees()[assignment.assignee_id] = self;
 
 			calendar.assignees().push(self);
 		}
 
+	}
+
+	Assignee.prototype.partsOf = function(day) {
+		
+		var self = this;
+
+        return Object.keys(self.partTasks()).sort().filter(p => p >= +day.start() && p < +day.end()).map(p => self.partTasks()[p]);
 	}
 
 	function makeItHappen() {

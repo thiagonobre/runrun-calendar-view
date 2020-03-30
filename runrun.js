@@ -110,9 +110,14 @@
 
 		var self = this;
 
-		var today = new Date;
+		var date = new Date;
 
-		self.currentDay(today);
+		date.setMinutes(0);
+		date.setSeconds(0);
+		date.setMilliseconds(0);
+		date.setTime(date.getTime() + 3*60*60*1000); // timezone
+
+		self.currentDay(date);
 
 	}
 
@@ -139,8 +144,8 @@
 
 		var self = this;
 
-		document.querySelector('#application-header').style.display = 'none';
-		document.querySelector('#application_main_wrapper').style.display = 'none';
+		// document.querySelector('#application-header').style.display = 'none';
+		// document.querySelector('#application_main_wrapper').style.display = 'none';
 
 		if (document.querySelector('#calendar')) {
 			document.querySelector('#calendar').remove();

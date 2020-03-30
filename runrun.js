@@ -144,8 +144,8 @@
 
 		var self = this;
 
-		// document.querySelector('#application-header').style.display = 'none';
-		// document.querySelector('#application_main_wrapper').style.display = 'none';
+		document.querySelector('#application-header').style.display = 'none';
+		document.querySelector('#application_main_wrapper').style.display = 'none';
 
 		if (document.querySelector('#calendar')) {
 			document.querySelector('#calendar').remove();

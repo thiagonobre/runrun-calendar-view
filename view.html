@@ -1,35 +1,91 @@
-<div class="buttons">
-				<button data-bind="click: prevWeek">Semana anterior</button>
-				<button data-bind="click: goToday">Hoje</button>
-				<button data-bind="click: nextWeek">Próxima semana</button>
-			</div>
-			<div id="week">
-			<!-- ko foreach: assignees -->
-			<div class="assignee" data-bind="if: show">
-				<h3 data-bind="text: name"></h3>
-				<!-- ko foreach: $parent.week().days -->
-				<div class="day" style="display: inline-block; border: 1px solid black; width: 252px">
-					<!-- ko with: $data.start -->
-					<h5 data-bind="text: $data.toDateString()"></h5>
-					<!-- /ko -->
-					<!-- ko foreach: parts -->
-					<div class="part" style="height: 25px; overflow: hidden;">
-						<table width="100%" style="height: 100%">
-							<tr>
-								<!-- ko with: new Date(+$data).toTimeString().slice(0, 5) -->
-								<td data-bind="text: $data"></td>
-								<!-- /ko -->
+<style>
+			#week td, #week th {
+				padding: 2px;
+				vertical-align: top;
+			}
+			#week .dark-bg {
+				background: #b5c7d2;
+			}
+			#week .light-bg {
+				background: #d5e0ed;
+			}
+			#week .divisor {
+				background: #132d42;
+			}
+			#week .buttons button {
+				margin: 5px;
+			}
+			#week .assignee-name {
+				position: absolute;
+				color: #fff;
+				background: #132d42;
+				z-index: 999;
+			}
+			</style>
+			<div id="week" style="overflow: auto">
+				<div class="buttons">
+					<button data-bind="click: prevWeek">Semana anterior</button>
+					<button data-bind="click: goToday">Hoje</button>
+					<button data-bind="click: nextWeek">Próxima semana</button>
+				</div>
+				<table>
+					<thead>
+						<tr>
+							<th class="light-bg">Colaborador</th>
+							<!-- ko foreach: week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<!-- ko with: $data.start -->
+							<th data-bind="text: $data.toDateString(), attr: { colspan: $parent.parts().length }, class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$parentContext.$index() % 2] })"></th>
+							<!-- /ko -->
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+					</thead>
+					<tbody>
+						<!-- ko foreach: assignees -->
+						<!-- ko if: show -->
+						<tr>
+							<td></td>
+							<!-- ko foreach: $parent.week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<!-- ko foreach: parts -->
+							<th data-bind="text: new Date(+$data).toTimeString().slice(0, 5), class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$parentContext.$index() % 2] })"></th>
+							<!-- /ko -->
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+						<tr>
+							<td class="divisor"></td>
+							<!-- ko foreach: $parent.week().days -->
+							<td class="divisor" data-bind="attr: { colspan: parts().length }"></td>
+							<!-- /ko -->
+						</tr>
+						<tr>
+							<td data-bind="text: name" class="light-bg assignee-name" style="height: 26px"></td>
+							<!-- ko foreach: $parent.week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<td data-bind="attr: { colspan: parts().length }, class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$index() % 2] })" style="height: 26px"></td>
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+						<tr>
+							<td></td>
+							<!-- ko foreach: $parent.week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<!-- ko foreach: parts -->
+							<td data-bind="class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$parentContext.$index() % 2] })">
 								<!-- ko foreach: $parents[1].partTasks()[$data] -->
 								<!-- ko with: $root.tasks()[$data.task()] -->
-								<td style="word-wrap: nowrap; overflow: hidden;" data-bind="style: { backgroundColor: color }"><a data-bind="attr: { href: '/pt-BR/tasks/' + id(), title: title() }" target="_blank"><span data-bind="text: id"></span></a></td>
+								<p style="word-wrap: nowrap; overflow: hidden;" data-bind="style: { backgroundColor: color }"><a data-bind="attr: { href: '/pt-BR/tasks/' + id(), title: title() }" target="_blank"><span data-bind="text: id"></span></a></p>
 								<!-- /ko -->
 								<!-- /ko -->
-							</tr>
-						</table>
-					</div>
-					<!-- /ko -->
-				</div>
-				<!-- /ko -->
+							</td>
+							<!-- /ko -->
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+						<!-- /ko -->
+						<!-- /ko -->
+					</tbody>
+				</table>
 			</div>
-			<!-- /ko -->
-		</div>

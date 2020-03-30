@@ -4,7 +4,7 @@
 
 		var self = this;
 
-		self.taskPartSize = ko.observable(15);
+		self.taskPartSize = ko.observable(30);
 		self.currentDay = ko.observable();
 		self.dayStartHours = ko.observable(9);
 		self.dayStartMinutes = ko.observable(0);
@@ -24,6 +24,26 @@
 
 		self.days = ko.observable({});
 		self.weeks = ko.observable({});
+		self.week = ko.observable();
+
+		self.tasks = ko.observable({});
+
+		self.assignees = ko.observable([]);
+		self.tasksArray = ko.observable([]);
+
+		self.currentDay.subscribe(function(day) {
+
+			// console.log(day, self.currentDay(), +day < +self.week().days()[0].start(), +self.week().days()[6].end() < +day);
+			if (self.week()) {
+				if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
+					self.week(new Week(self.currentDay()));
+					// self.tasksArray(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
+					self.calculateTaskParts();
+					self.assignees().forEach(a => a.refreshPartTasks());
+				}
+			}
+
+		});
 
 		self.init = function(date) {
 
@@ -35,34 +55,26 @@
 				self.goToday();
 			}
 
+			// console.log(self.currentDay(), date);
+
+			date = self.currentDay();
+
+			date.setMinutes(0);
+			date.setSeconds(0);
+			date.setMilliseconds(0);
+			date.setTime(date.getTime() + 3*60*60*1000); // timezone
+
 			self.loadTasks().then((tasks) => {
 
-				self.assignees = ko.observable([]);
-
-				self.tasks = ko.observable({});
-				self.tasksArray = ko.observable(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
-
 				// tasks = self.tasks();
+				self.tasksArray = ko.observable(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
 
 				self.tasksArray().forEach((t, i) => {
 					self.tasks()[t.id()] = t;
 				});
 
-				self.week = ko.observable(new Week(self.currentDay()));
-
-				self.currentDay.subscribe(function(day) {
-
-					// console.log(day, self.currentDay(), +day < +self.week().days()[0].start(), +self.week().days()[6].end() < +day);
-
-					if (+day < +self.week().days()[0].start() || +self.week().days()[6].end() < +day) {
-						self.week(new Week(self.currentDay()));
-						// self.tasksArray(tasks.filter(task => task.desired_start_date || task.desired_date_with_time).map(t => new Task(t)));
-						self.calculateTaskParts();
-						self.assignees().forEach(a => a.refreshPartTasks());
-					}
-
-				});
-
+				self.week(new Week(self.currentDay()));
+					
 				self.calculateTaskParts();
 				self.assignees().forEach(a => a.refreshPartTasks());
 				self.render();
@@ -80,8 +92,6 @@
 
 		var date = new Date(+self.currentDay() + 7 * 24 * 60 * 60 * 1000);
 
-		date.setHours(9);
-
 		self.currentDay(date);
 
 	}
@@ -91,8 +101,6 @@
 		var self = this;
 
 		var date = new Date(+self.currentDay() - 7 * 24 * 60 * 60 * 1000);
-
-		date.setHours(9);
 
 		self.currentDay(date);
 
@@ -104,14 +112,12 @@
 
 		var today = new Date;
 
-		today.setHours(10); // because of timezone 
-
 		self.currentDay(today);
 
 	}
 
 	CalendarViewModel.prototype.loadTasks = function() {
-		return fetch("/api/tasks?limit=250&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=board_stage_name&sort_dir=desc", {
+		return fetch("/api/tasks?limit=250&page=1&filter_id=85986&bypass_status_default=true&include_not_assigned=true&sort=created_at&sort_dir=asc", {
 			"credentials": "include",
 			"headers": {
 				"accept": "application/json, text/javascript, */*; q=0.01",
@@ -145,41 +151,97 @@
 		calendarEl.id = 'calendar';
 		calendarEl.style.padding = '5px;'
 
-		calendarEl.innerHTML = `<div class="buttons">
-				<button data-bind="click: prevWeek">Semana anterior</button>
-				<button data-bind="click: goToday">Hoje</button>
-				<button data-bind="click: nextWeek">Próxima semana</button>
-			</div>
-			<div id="week">
-			<!-- ko foreach: assignees -->
-			<div class="assignee" data-bind="if: show">
-				<h3 data-bind="text: name"></h3>
-				<!-- ko foreach: $parent.week().days -->
-				<div class="day" style="display: inline-block; border: 1px solid black; width: 252px">
-					<!-- ko with: $data.start -->
-					<h5 data-bind="text: $data.toDateString()"></h5>
-					<!-- /ko -->
-					<!-- ko foreach: parts -->
-					<div class="part" style="height: 25px; overflow: hidden;">
-						<table width="100%" style="height: 100%">
-							<tr>
-								<!-- ko with: new Date(+$data).toTimeString().slice(0, 5) -->
-								<td data-bind="text: $data"></td>
-								<!-- /ko -->
+		calendarEl.innerHTML = `<style>
+			#week td, #week th {
+				padding: 2px;
+				vertical-align: top;
+			}
+			#week .dark-bg {
+				background: #b5c7d2;
+			}
+			#week .light-bg {
+				background: #d5e0ed;
+			}
+			#week .divisor {
+				background: #132d42;
+			}
+			#week .buttons button {
+				margin: 5px;
+			}
+			#week .assignee-name {
+				position: absolute;
+				color: #fff;
+				background: #132d42;
+				z-index: 999;
+			}
+			</style>
+			<div id="week" style="overflow: auto">
+				<div class="buttons">
+					<button data-bind="click: prevWeek">Semana anterior</button>
+					<button data-bind="click: goToday">Hoje</button>
+					<button data-bind="click: nextWeek">Próxima semana</button>
+				</div>
+				<table>
+					<thead>
+						<tr>
+							<th class="light-bg">Colaborador</th>
+							<!-- ko foreach: week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<!-- ko with: $data.start -->
+							<th data-bind="text: $data.toDateString(), attr: { colspan: $parent.parts().length }, class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$parentContext.$index() % 2] })"></th>
+							<!-- /ko -->
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+					</thead>
+					<tbody>
+						<!-- ko foreach: assignees -->
+						<!-- ko if: show -->
+						<tr>
+							<td></td>
+							<!-- ko foreach: $parent.week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<!-- ko foreach: parts -->
+							<th data-bind="text: new Date(+$data).toTimeString().slice(0, 5), class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$parentContext.$index() % 2] })"></th>
+							<!-- /ko -->
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+						<tr>
+							<td class="divisor"></td>
+							<!-- ko foreach: $parent.week().days -->
+							<td class="divisor" data-bind="attr: { colspan: parts().length }"></td>
+							<!-- /ko -->
+						</tr>
+						<tr>
+							<td data-bind="text: name" class="light-bg assignee-name" style="height: 26px"></td>
+							<!-- ko foreach: $parent.week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<td data-bind="attr: { colspan: parts().length }, class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$index() % 2] })" style="height: 26px"></td>
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+						<tr>
+							<td></td>
+							<!-- ko foreach: $parent.week().days -->
+							<!-- ko if: $data.isBusinessDay -->
+							<!-- ko foreach: parts -->
+							<td data-bind="class: ko.pureComputed(function() { return ['light-bg', 'dark-bg'][$parentContext.$index() % 2] })">
 								<!-- ko foreach: $parents[1].partTasks()[$data] -->
 								<!-- ko with: $root.tasks()[$data.task()] -->
-								<td style="word-wrap: nowrap; overflow: hidden;" data-bind="style: { backgroundColor: color }"><a data-bind="attr: { href: '/pt-BR/tasks/' + id(), title: title() }" target="_blank"><span data-bind="text: id"></span></a></td>
+								<p style="word-wrap: nowrap; overflow: hidden;" data-bind="style: { backgroundColor: color }"><a data-bind="attr: { href: '/pt-BR/tasks/' + id(), title: title() }" target="_blank"><span data-bind="text: id"></span></a></p>
 								<!-- /ko -->
 								<!-- /ko -->
-							</tr>
-						</table>
-					</div>
-					<!-- /ko -->
-				</div>
-				<!-- /ko -->
-			</div>
-			<!-- /ko -->
-		</div>`;
+							</td>
+							<!-- /ko -->
+							<!-- /ko -->
+							<!-- /ko -->
+						</tr>
+						<!-- /ko -->
+						<!-- /ko -->
+					</tbody>
+				</table>
+			</div>`;
 
 		document.body.appendChild(calendarEl);
 
@@ -195,14 +257,17 @@
 	function Week(date) {
 
 		var self = this,
-			calendar = CalendarViewModel.getInstance();
+			calendar = CalendarViewModel.getInstance()
 
 		var dayInMilis = 1000 * 60 * 60 * 24;
 		var dateMilis = +date;
 		var weekStart = new Date(+date - date.getDay() * dayInMilis);
+
 		self.id = ko.pureComputed(function() {
 			return weekStart.toISOString().substring(0, 10)
 		});
+
+		// console.log(date, weekStart);
 
 		if (calendar.weeks()[self.id()]) {
 			return calendar.weeks()[self.id()];
@@ -402,12 +467,12 @@
 			parts = self.week().parts();
 
 		self.tasksArray().forEach(task => {
-			var start = parts.indexOf(+task.start()),
-				end = parts.indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
+			var start = self.week().parts().indexOf(+task.start()),
+				end = self.week().parts().indexOf(+task.end() - calendar.taskPartSize() * 60 * 1000);
 
 			// calculate task parts
-			console.log('start', task.id(), start, task.start());
-			console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
+			// console.log('start', task.id(), start, task.start());
+			// console.log('end', task.id(), end, new Date(task.end() - calendar.taskPartSize() * 60 * 1000));
 
 			if (start > -1 && end > -1) {
 
@@ -446,7 +511,7 @@
 			self.team = ko.observable(assignment.team_name);
 			self.tasks = ko.observable([]);
 			self.show = ko.pureComputed(function() {
-				return self.team() == 'Front-end Ongoing - OCC';
+				return self.id() != 'thiago-nobre' && self.team() == 'Front-end Ongoing - OCC';
 			});
 
 			self.partTasks = ko.observable({});
@@ -481,6 +546,7 @@
 			})
 		})
 
+		Object.values(partTasks).forEach(pt => pt.sort((t1, t2) => t2.task()-t1.task()));
 		self.partTasks(partTasks);
 	};
 
@@ -493,7 +559,7 @@
 
 	function makeItHappen() {
 
-		CalendarViewModel.getInstance().init(new Date('2020-03-22T04:00'));
+		CalendarViewModel.getInstance().init(new Date);
 
 		window.calendar = CalendarViewModel.getInstance();
 
